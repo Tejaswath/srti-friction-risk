@@ -35,6 +35,7 @@ def build_geojson(
                     "humidity_pct": point.humidity_pct,
                     "precip_mm": point.precip_mm,
                     "condition_cause": point.condition_cause,
+                    "condition_label": point.condition_label,
                     "nearby_alerts": point.nearby_alerts,
                     "data_staleness_minutes": point.data_staleness_minutes,
                     "computed_at": point.computed_at.isoformat(),

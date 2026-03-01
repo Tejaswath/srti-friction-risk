@@ -124,10 +124,14 @@ def compute_risk(
             min_dist = distance
             nearest_condition = condition
 
+    condition_label = None
+    if nearest_condition:
+        condition_label = nearest_condition.cause or nearest_condition.condition_text
+
     temp_score = _surface_temp_score(weather.surface_temp_c)
     precip_score = _precip_score(weather.precip_mm, weather.surface_temp_c)
     humid_score = _humidity_score(weather.humidity_pct, weather.surface_temp_c)
-    cond_score = _match_condition_risk(nearest_condition.cause if nearest_condition else None)
+    cond_score = _match_condition_risk(condition_label)
 
     raw = (temp_score * 0.35) + (precip_score * 0.25) + (humid_score * 0.15) + (cond_score * 0.25)
 
@@ -166,6 +170,7 @@ def compute_risk(
         humidity_pct=weather.humidity_pct,
         precip_mm=weather.precip_mm,
         condition_cause=nearest_condition.cause if nearest_condition else None,
+        condition_label=condition_label,
         nearby_alerts=nearby_alerts,
         data_staleness_minutes=staleness,
         computed_at=datetime.now(timezone.utc),

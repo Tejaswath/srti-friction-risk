@@ -4,37 +4,40 @@ import "leaflet/dist/leaflet.css";
 
 import { GeoJSON, MapContainer, TileLayer } from "react-leaflet";
 import L from "leaflet";
-import { useMemo } from "react";
 import type { ComponentProps } from "react";
-import type { FeatureCollection } from "geojson";
+import type { FeatureCollection, Point } from "geojson";
 
-type Props = {
-  geojson: FeatureCollection | null;
-};
-
-const RISK_COLORS: Record<string, string> = {
-  high: "#ef4444",
-  medium: "#eab308",
-  low: "#22c55e",
-};
-
-const LEGEND_ITEMS = [
-  { label: "High risk", range: "61-100", color: RISK_COLORS.high },
-  { label: "Medium risk", range: "31-60", color: RISK_COLORS.medium },
-  { label: "Low risk", range: "0-30", color: RISK_COLORS.low },
-];
+type RiskLevel = "low" | "medium" | "high";
 
 type RiskFeatureProperties = {
-  risk_level?: string;
+  risk_level?: RiskLevel;
   name?: string;
   risk_score?: number;
   surface_temp_c?: number | null;
   humidity_pct?: number | null;
   precip_mm?: number | null;
-  condition_cause?: string | null;
+  condition_label?: string | null;
   nearby_alerts?: number;
   data_staleness_minutes?: number | null;
 };
+
+type Props = {
+  geojson: FeatureCollection<Point, RiskFeatureProperties> | null;
+  legendCounts: Record<RiskLevel, number>;
+  displayedCount: number;
+};
+
+const RISK_COLORS: Record<RiskLevel, string> = {
+  high: "#ef4444",
+  medium: "#eab308",
+  low: "#22c55e",
+};
+
+const LEGEND_ITEMS: Array<{ level: RiskLevel; label: string; range: string }> = [
+  { level: "high", label: "High risk", range: "61-100" },
+  { level: "medium", label: "Medium risk", range: "31-60" },
+  { level: "low", label: "Low risk", range: "0-30" },
+];
 
 type GeoJsonProps = ComponentProps<typeof GeoJSON>;
 type PointToLayerFn = NonNullable<GeoJsonProps["pointToLayer"]>;
@@ -47,20 +50,31 @@ const toRiskProps = (raw: unknown): RiskFeatureProperties | null => {
   return raw as RiskFeatureProperties;
 };
 
-export default function RiskMap({ geojson }: Props) {
-  const mapKey = useMemo(() => JSON.stringify(geojson), [geojson]);
+const sanitizeHtml = (value: string): string =>
+  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+const formatValue = (value: number | null | undefined, suffix: string): string => {
+  if (value == null) {
+    return "N/A";
+  }
+  return `${value}${suffix}`;
+};
+
+export default function RiskMap({ geojson, legendCounts, displayedCount }: Props) {
   const pointToLayer: PointToLayerFn = (feature, latlng) => {
     const props = toRiskProps(feature?.properties);
-    const rawLevel = props?.risk_level ?? "low";
-    const level = rawLevel in RISK_COLORS ? rawLevel : "low";
+    const level: RiskLevel =
+      props?.risk_level === "high" || props?.risk_level === "medium" || props?.risk_level === "low"
+        ? props.risk_level
+        : "low";
+
     return L.circleMarker(latlng, {
       radius: 7,
-      fillColor: RISK_COLORS[level] || RISK_COLORS.low,
+      fillColor: RISK_COLORS[level],
       color: "#d1d5db",
       weight: 1,
       opacity: 0.9,
-      fillOpacity: 0.85,
+      fillOpacity: 0.9,
     });
   };
 
@@ -73,34 +87,39 @@ export default function RiskMap({ geojson }: Props) {
       return;
     }
 
-    const rawPopupLevel = props.risk_level ?? "low";
-    const popupLevel = rawPopupLevel in RISK_COLORS ? rawPopupLevel : "low";
-    const scoreColor = RISK_COLORS[popupLevel] || RISK_COLORS.low;
-    layer.bindPopup(`
-      <div style="font-family: sans-serif; font-size: 13px; line-height: 1.4; min-width: 180px;">
-        <strong>${props.name}</strong><br />
-        <span style="font-size: 20px; font-weight: 700; color: ${scoreColor};">${props.risk_score ?? "?"}/100</span>
-        <span style="text-transform: uppercase; font-size: 11px; margin-left: 6px;">${popupLevel}</span>
-        <hr style="margin: 6px 0; border-color: #ddd;" />
-        Surface: ${props.surface_temp_c ?? "N/A"}${props.surface_temp_c != null ? "°C" : ""}<br />
-        Humidity: ${props.humidity_pct ?? "N/A"}${props.humidity_pct != null ? "%" : ""}<br />
-        Precip: ${props.precip_mm ?? "N/A"}${props.precip_mm != null ? " mm" : ""}<br />
-        ${props.condition_cause ? `Condition: ${props.condition_cause}<br />` : ""}
-        ${(props.nearby_alerts ?? 0) > 0 ? `Nearby alerts: ${props.nearby_alerts}<br />` : ""}
-        <span style="color: #6b7280; font-size: 11px;">
-          Data age: ${props.data_staleness_minutes ?? "?"} min
-        </span>
+    const level: RiskLevel =
+      props.risk_level === "high" || props.risk_level === "medium" || props.risk_level === "low"
+        ? props.risk_level
+        : "low";
+
+    const conditionLabel = props.condition_label ? sanitizeHtml(props.condition_label) : "No data";
+    const stationName = props.name ? sanitizeHtml(props.name) : "Unknown station";
+    const nearbyAlerts = props.nearby_alerts ?? 0;
+
+    layer.bindPopup(
+      `
+      <div class="risk-popup-inner" style="border-left-color:${RISK_COLORS[level]}">
+        <div class="risk-popup-title">${stationName}</div>
+        <div class="risk-popup-score-row">
+          <span class="risk-popup-score" style="color:${RISK_COLORS[level]}">${props.risk_score ?? "?"}/100</span>
+          <span class="risk-popup-level">${level}</span>
+        </div>
+        <hr class="risk-popup-divider" />
+        <div class="risk-popup-row"><span class="risk-popup-label">Surface</span><span class="risk-popup-value">${formatValue(props.surface_temp_c, "°C")}</span></div>
+        <div class="risk-popup-row"><span class="risk-popup-label">Humidity</span><span class="risk-popup-value">${formatValue(props.humidity_pct, "%")}</span></div>
+        <div class="risk-popup-row"><span class="risk-popup-label">Precip</span><span class="risk-popup-value">${formatValue(props.precip_mm, " mm")}</span></div>
+        <div class="risk-popup-row"><span class="risk-popup-label">Road Condition</span><span class="risk-popup-value">${conditionLabel}</span></div>
+        <div class="risk-popup-row"><span class="risk-popup-label">Nearby Alerts</span><span class="risk-popup-value">${nearbyAlerts}</span></div>
+        <div class="risk-popup-meta">Data age: ${props.data_staleness_minutes ?? "?"} min</div>
       </div>
-    `);
+    `,
+      { className: "risk-popup", maxWidth: 320 },
+    );
   };
 
   return (
     <div className="relative h-full w-full">
-      <MapContainer
-        center={[62.5, 16.0]}
-        zoom={5}
-        style={{ height: "100%", width: "100%" }}
-      >
+      <MapContainer center={[62.5, 16.0]} zoom={5} style={{ height: "100%", width: "100%" }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/">OSM</a>'
           url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
@@ -111,34 +130,30 @@ export default function RiskMap({ geojson }: Props) {
           className="map-labels-layer"
           opacity={1}
         />
-        {geojson ? (
-          <GeoJSON
-            key={mapKey}
-            data={geojson}
-            pointToLayer={pointToLayer}
-            onEachFeature={onEachFeature}
-          />
-        ) : null}
+        {geojson ? <GeoJSON data={geojson} pointToLayer={pointToLayer} onEachFeature={onEachFeature} /> : null}
       </MapContainer>
 
       <aside className="pointer-events-none absolute bottom-6 left-6 z-[1000] max-w-xs rounded-lg border border-gray-700 bg-gray-900/90 p-4 text-sm text-white shadow-xl backdrop-blur-sm">
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-300">
-          Risk Legend
-        </h3>
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-300">Risk Legend</h3>
         <ul className="space-y-2">
           {LEGEND_ITEMS.map((item) => (
-            <li key={item.label} className="flex items-center justify-between gap-3">
+            <li key={item.level} className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <span
                   className="inline-block h-3 w-3 rounded-full ring-1 ring-white/30"
-                  style={{ backgroundColor: item.color }}
+                  style={{ backgroundColor: RISK_COLORS[item.level] }}
                 />
                 <span>{item.label}</span>
               </div>
-              <span className="text-gray-300">{item.range}</span>
+              <span className="text-gray-300">
+                {item.range} ({legendCounts[item.level]})
+              </span>
             </li>
           ))}
         </ul>
+        <div className="mt-3 border-t border-gray-700 pt-2 text-xs text-gray-400">
+          Showing {displayedCount} station{displayedCount === 1 ? "" : "s"}
+        </div>
       </aside>
     </div>
   );

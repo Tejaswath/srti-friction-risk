@@ -90,6 +90,22 @@ def test_nearest_condition_selected():
     )
     risk = compute_risk(weather, [far, near], [])
     assert risk.condition_cause == "Ishalka"
+    assert risk.condition_label == "Ishalka"
+
+
+def test_condition_label_falls_back_to_condition_text():
+    weather = _weather_point(surface_temp_c=-1.0, humidity_pct=90.0, precip_mm=0.5)
+    near = RoadConditionPoint(
+        condition_id="c-near",
+        cause=None,
+        condition_text="Rimfrost",
+        lat=59.331,
+        lon=18.061,
+    )
+    risk = compute_risk(weather, [near], [])
+    assert risk.condition_cause is None
+    assert risk.condition_label == "Rimfrost"
+    assert risk.risk_score > 0
 
 
 def test_stale_data_over_180_minutes_becomes_zero():

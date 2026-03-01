@@ -12,6 +12,9 @@ from app.models import RoadConditionPoint, SituationAlert, WeatherPoint
 logger = logging.getLogger(__name__)
 
 API_URL = "https://api.trafikinfo.trafikverket.se/v2/data.json"
+WEATHER_LIMIT = 1000
+ROAD_CONDITION_LIMIT = 1000
+SITUATION_LIMIT = 500
 
 _weather_cache: TTLCache = TTLCache(maxsize=1, ttl=settings.cache_ttl_seconds)
 _condition_cache: TTLCache = TTLCache(maxsize=1, ttl=settings.cache_ttl_seconds)
@@ -75,6 +78,16 @@ def _extract_result_block(payload: dict) -> dict:
     return first if isinstance(first, dict) else {}
 
 
+def _warn_if_limit_hit(entity_name: str, count: int, limit: int) -> None:
+    if count >= limit:
+        logger.warning(
+            "%s fetch returned %s rows at configured limit %s; results may be truncated",
+            entity_name,
+            count,
+            limit,
+        )
+
+
 async def _post_trafikverket(xml_body: str) -> dict:
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
@@ -92,7 +105,7 @@ async def fetch_weather() -> list[WeatherPoint]:
 
     xml = f"""<REQUEST>
       <LOGIN authenticationkey="{settings.trafikverket_api_key}"/>
-      <QUERY objecttype="WeatherMeasurepoint" schemaversion="2" limit="500">
+      <QUERY objecttype="WeatherMeasurepoint" schemaversion="2" limit="{WEATHER_LIMIT}">
         <INCLUDE>Id</INCLUDE>
         <INCLUDE>Name</INCLUDE>
         <INCLUDE>Geometry.WGS84</INCLUDE>
@@ -109,6 +122,11 @@ async def fetch_weather() -> list[WeatherPoint]:
     data = await _post_trafikverket(xml)
     block = _extract_result_block(data)
     results = block.get("WeatherMeasurepoint", [])
+    if isinstance(results, dict):
+        results = [results]
+    if not isinstance(results, list):
+        results = []
+    _warn_if_limit_hit("WeatherMeasurepoint", len(results), WEATHER_LIMIT)
     points: list[WeatherPoint] = []
 
     for row in results:
@@ -151,7 +169,7 @@ async def fetch_road_conditions() -> list[RoadConditionPoint]:
 
     xml = f"""<REQUEST>
       <LOGIN authenticationkey="{settings.trafikverket_api_key}"/>
-      <QUERY objecttype="RoadCondition" schemaversion="1.2" limit="500">
+      <QUERY objecttype="RoadCondition" schemaversion="1.2" limit="{ROAD_CONDITION_LIMIT}">
         <INCLUDE>Id</INCLUDE>
         <INCLUDE>RoadNumberNumeric</INCLUDE>
         <INCLUDE>Cause</INCLUDE>
@@ -165,6 +183,11 @@ async def fetch_road_conditions() -> list[RoadConditionPoint]:
     data = await _post_trafikverket(xml)
     block = _extract_result_block(data)
     results = block.get("RoadCondition", [])
+    if isinstance(results, dict):
+        results = [results]
+    if not isinstance(results, list):
+        results = []
+    _warn_if_limit_hit("RoadCondition", len(results), ROAD_CONDITION_LIMIT)
     points: list[RoadConditionPoint] = []
 
     for row in results:
@@ -197,7 +220,7 @@ async def fetch_situations() -> list[SituationAlert]:
 
     xml = f"""<REQUEST>
       <LOGIN authenticationkey="{settings.trafikverket_api_key}"/>
-      <QUERY objecttype="Situation" schemaversion="1.5" limit="200">
+      <QUERY objecttype="Situation" schemaversion="1.5" limit="{SITUATION_LIMIT}">
         <INCLUDE>Id</INCLUDE>
         <INCLUDE>Deviation.MessageType</INCLUDE>
         <INCLUDE>Deviation.SituationType</INCLUDE>
@@ -212,6 +235,11 @@ async def fetch_situations() -> list[SituationAlert]:
     data = await _post_trafikverket(xml)
     block = _extract_result_block(data)
     results = block.get("Situation", [])
+    if isinstance(results, dict):
+        results = [results]
+    if not isinstance(results, list):
+        results = []
+    _warn_if_limit_hit("Situation", len(results), SITUATION_LIMIT)
     alerts: list[SituationAlert] = []
 
     for row in results:

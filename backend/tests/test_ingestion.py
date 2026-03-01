@@ -6,6 +6,7 @@ from app.ingestion import (
     _parse_dt,
     _parse_wgs84,
     _safe_float,
+    _warn_if_limit_hit,
 )
 
 
@@ -50,3 +51,15 @@ def test_extract_result_block_error_raises():
     payload = {"RESPONSE": {"ERROR": "Auth failed"}}
     with pytest.raises(TrafikverketAPIError):
         _extract_result_block(payload)
+
+
+def test_warn_if_limit_hit_logs_warning(caplog):
+    with caplog.at_level("WARNING"):
+        _warn_if_limit_hit("WeatherMeasurepoint", 1000, 1000)
+    assert "may be truncated" in caplog.text
+
+
+def test_warn_if_limit_hit_below_limit_no_warning(caplog):
+    with caplog.at_level("WARNING"):
+        _warn_if_limit_hit("WeatherMeasurepoint", 999, 1000)
+    assert "may be truncated" not in caplog.text

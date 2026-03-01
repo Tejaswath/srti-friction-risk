@@ -65,6 +65,7 @@ class FrictionRiskPoint(BaseModel):
     humidity_pct: Optional[float] = None
     precip_mm: Optional[float] = None
     condition_cause: Optional[str] = None
+    condition_label: Optional[str] = None
     nearby_alerts: int = 0
     data_staleness_minutes: Optional[int] = None
     computed_at: datetime
