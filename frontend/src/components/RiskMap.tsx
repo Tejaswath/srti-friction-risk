@@ -55,12 +55,13 @@ export default function RiskMap({ geojson }: Props) {
       return;
     }
 
-    const scoreColor = RISK_COLORS[props.risk_level] || RISK_COLORS.low;
+    const popupLevel = props.risk_level ?? "low";
+    const scoreColor = RISK_COLORS[popupLevel] || RISK_COLORS.low;
     layer.bindPopup(`
       <div style="font-family: sans-serif; font-size: 13px; line-height: 1.4; min-width: 180px;">
         <strong>${props.name}</strong><br />
-        <span style="font-size: 20px; font-weight: 700; color: ${scoreColor};">${props.risk_score}/100</span>
-        <span style="text-transform: uppercase; font-size: 11px; margin-left: 6px;">${props.risk_level}</span>
+        <span style="font-size: 20px; font-weight: 700; color: ${scoreColor};">${props.risk_score ?? "?"}/100</span>
+        <span style="text-transform: uppercase; font-size: 11px; margin-left: 6px;">${popupLevel}</span>
         <hr style="margin: 6px 0; border-color: #ddd;" />
         Surface: ${props.surface_temp_c ?? "N/A"}${props.surface_temp_c != null ? "°C" : ""}<br />
         Humidity: ${props.humidity_pct ?? "N/A"}${props.humidity_pct != null ? "%" : ""}<br />
