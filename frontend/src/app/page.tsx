@@ -127,6 +127,7 @@ export default function Home() {
   const filteredCounts = useMemo(() => toRiskCounts(filteredGeojson), [filteredGeojson]);
   const displayedCount = filteredGeojson?.features.length ?? 0;
   const totalCount = summary?.total_stations ?? 0;
+  const mapDataKey = `${levelFilter || "all"}-${displayedCount}-${summary?.last_refresh || "none"}`;
 
   return (
     <main className="min-h-screen bg-gray-950 text-white">
@@ -222,6 +223,7 @@ export default function Home() {
           geojson={filteredGeojson}
           legendCounts={filteredCounts}
           displayedCount={displayedCount}
+          dataKey={mapDataKey}
         />
       </div>
 

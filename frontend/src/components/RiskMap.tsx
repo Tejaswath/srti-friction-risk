@@ -25,6 +25,7 @@ type Props = {
   geojson: FeatureCollection<Point, RiskFeatureProperties> | null;
   legendCounts: Record<RiskLevel, number>;
   displayedCount: number;
+  dataKey: string;
 };
 
 const RISK_COLORS: Record<RiskLevel, string> = {
@@ -60,7 +61,7 @@ const formatValue = (value: number | null | undefined, suffix: string): string =
   return `${value}${suffix}`;
 };
 
-export default function RiskMap({ geojson, legendCounts, displayedCount }: Props) {
+export default function RiskMap({ geojson, legendCounts, displayedCount, dataKey }: Props) {
   const pointToLayer: PointToLayerFn = (feature, latlng) => {
     const props = toRiskProps(feature?.properties);
     const level: RiskLevel =
@@ -130,7 +131,14 @@ export default function RiskMap({ geojson, legendCounts, displayedCount }: Props
           className="map-labels-layer"
           opacity={1}
         />
-        {geojson ? <GeoJSON data={geojson} pointToLayer={pointToLayer} onEachFeature={onEachFeature} /> : null}
+        {geojson ? (
+          <GeoJSON
+            key={dataKey}
+            data={geojson}
+            pointToLayer={pointToLayer}
+            onEachFeature={onEachFeature}
+          />
+        ) : null}
       </MapContainer>
 
       <aside className="pointer-events-none absolute bottom-6 left-6 z-[1000] max-w-xs rounded-lg border border-gray-700 bg-gray-900/90 p-4 text-sm text-white shadow-xl backdrop-blur-sm">
