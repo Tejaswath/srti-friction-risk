@@ -67,7 +67,7 @@ export default function RiskMap({ geojson }: Props) {
         Humidity: ${props.humidity_pct ?? "N/A"}${props.humidity_pct != null ? "%" : ""}<br />
         Precip: ${props.precip_mm ?? "N/A"}${props.precip_mm != null ? " mm" : ""}<br />
         ${props.condition_cause ? `Condition: ${props.condition_cause}<br />` : ""}
-        ${props.nearby_alerts > 0 ? `Nearby alerts: ${props.nearby_alerts}<br />` : ""}
+        ${(props.nearby_alerts ?? 0) > 0 ? `Nearby alerts: ${props.nearby_alerts}<br />` : ""}
         <span style="color: #6b7280; font-size: 11px;">
           Data age: ${props.data_staleness_minutes ?? "?"} min
         </span>
