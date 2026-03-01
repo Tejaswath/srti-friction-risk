@@ -18,6 +18,12 @@ const RISK_COLORS: Record<string, string> = {
   low: "#22c55e",
 };
 
+const LEGEND_ITEMS = [
+  { label: "High risk", range: "61-100", color: RISK_COLORS.high },
+  { label: "Medium risk", range: "31-60", color: RISK_COLORS.medium },
+  { label: "Low risk", range: "0-30", color: RISK_COLORS.low },
+];
+
 type RiskFeatureProperties = {
   risk_level?: string;
   name?: string;
@@ -51,7 +57,7 @@ export default function RiskMap({ geojson }: Props) {
     return L.circleMarker(latlng, {
       radius: 7,
       fillColor: RISK_COLORS[level] || RISK_COLORS.low,
-      color: "#111827",
+      color: "#d1d5db",
       weight: 1,
       opacity: 0.9,
       fillOpacity: 0.85,
@@ -89,23 +95,51 @@ export default function RiskMap({ geojson }: Props) {
   };
 
   return (
-    <MapContainer
-      center={[62.5, 16.0]}
-      zoom={5}
-      style={{ height: "100%", width: "100%" }}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/">OSM</a>'
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      />
-      {geojson ? (
-        <GeoJSON
-          key={mapKey}
-          data={geojson}
-          pointToLayer={pointToLayer}
-          onEachFeature={onEachFeature}
+    <div className="relative h-full w-full">
+      <MapContainer
+        center={[62.5, 16.0]}
+        zoom={5}
+        style={{ height: "100%", width: "100%" }}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/">OSM</a>'
+          url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
         />
-      ) : null}
-    </MapContainer>
+        <TileLayer
+          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
+          className="map-labels-layer"
+          opacity={1}
+        />
+        {geojson ? (
+          <GeoJSON
+            key={mapKey}
+            data={geojson}
+            pointToLayer={pointToLayer}
+            onEachFeature={onEachFeature}
+          />
+        ) : null}
+      </MapContainer>
+
+      <aside className="pointer-events-none absolute bottom-6 left-6 z-[1000] max-w-xs rounded-lg border border-gray-700 bg-gray-900/90 p-4 text-sm text-white shadow-xl backdrop-blur-sm">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-300">
+          Risk Legend
+        </h3>
+        <ul className="space-y-2">
+          {LEGEND_ITEMS.map((item) => (
+            <li key={item.label} className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-block h-3 w-3 rounded-full ring-1 ring-white/30"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span>{item.label}</span>
+              </div>
+              <span className="text-gray-300">{item.range}</span>
+            </li>
+          ))}
+        </ul>
+      </aside>
+    </div>
   );
 }

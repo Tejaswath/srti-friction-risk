@@ -12,3 +12,8 @@ body {
   margin: 0;
   background-color: #030712;
 }
+
+/* Increase contrast of map labels on dark base tiles. */
+.leaflet-tile.map-labels-layer {
+  filter: brightness(2.2) contrast(1.45) saturate(0.9);
+}
