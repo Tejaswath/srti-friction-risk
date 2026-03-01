@@ -35,7 +35,7 @@ export default function RiskMap({ geojson }: Props) {
   const mapKey = useMemo(() => JSON.stringify(geojson), [geojson]);
 
   const pointToLayer = (feature: RiskFeature | undefined, latlng: L.LatLng) => {
-    const level = feature.properties?.risk_level || "low";
+    const level = feature?.properties?.risk_level || "low";
     return L.circleMarker(latlng, {
       radius: 7,
       fillColor: RISK_COLORS[level] || RISK_COLORS.low,
