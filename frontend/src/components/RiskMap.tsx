@@ -5,7 +5,8 @@ import "leaflet/dist/leaflet.css";
 import { GeoJSON, MapContainer, TileLayer } from "react-leaflet";
 import L from "leaflet";
 import { useMemo } from "react";
-import type { Feature, FeatureCollection, Point } from "geojson";
+import type { ComponentProps } from "react";
+import type { FeatureCollection } from "geojson";
 
 type Props = {
   geojson: FeatureCollection | null;
@@ -29,13 +30,24 @@ type RiskFeatureProperties = {
   data_staleness_minutes?: number | null;
 };
 
-type RiskFeature = Feature<Point, RiskFeatureProperties>;
+type GeoJsonProps = ComponentProps<typeof GeoJSON>;
+type PointToLayerFn = NonNullable<GeoJsonProps["pointToLayer"]>;
+type OnEachFeatureFn = NonNullable<GeoJsonProps["onEachFeature"]>;
+
+const toRiskProps = (raw: unknown): RiskFeatureProperties | null => {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  return raw as RiskFeatureProperties;
+};
 
 export default function RiskMap({ geojson }: Props) {
   const mapKey = useMemo(() => JSON.stringify(geojson), [geojson]);
 
-  const pointToLayer = (feature: RiskFeature | undefined, latlng: L.LatLng) => {
-    const level = feature?.properties?.risk_level || "low";
+  const pointToLayer: PointToLayerFn = (feature, latlng) => {
+    const props = toRiskProps(feature?.properties);
+    const rawLevel = props?.risk_level ?? "low";
+    const level = rawLevel in RISK_COLORS ? rawLevel : "low";
     return L.circleMarker(latlng, {
       radius: 7,
       fillColor: RISK_COLORS[level] || RISK_COLORS.low,
@@ -46,16 +58,17 @@ export default function RiskMap({ geojson }: Props) {
     });
   };
 
-  const onEachFeature = (feature: RiskFeature | undefined, layer: L.Layer) => {
+  const onEachFeature: OnEachFeatureFn = (feature, layer) => {
     if (!feature) {
       return;
     }
-    const props = feature.properties;
+    const props = toRiskProps(feature.properties);
     if (!props) {
       return;
     }
 
-    const popupLevel = props.risk_level ?? "low";
+    const rawPopupLevel = props.risk_level ?? "low";
+    const popupLevel = rawPopupLevel in RISK_COLORS ? rawPopupLevel : "low";
     const scoreColor = RISK_COLORS[popupLevel] || RISK_COLORS.low;
     layer.bindPopup(`
       <div style="font-family: sans-serif; font-size: 13px; line-height: 1.4; min-width: 180px;">
