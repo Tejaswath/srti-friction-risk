@@ -5,9 +5,10 @@ import "leaflet/dist/leaflet.css";
 import { GeoJSON, MapContainer, TileLayer } from "react-leaflet";
 import L from "leaflet";
 import { useMemo } from "react";
+import type { Feature, FeatureCollection, Point } from "geojson";
 
 type Props = {
-  geojson: GeoJSON.FeatureCollection | null;
+  geojson: FeatureCollection | null;
 };
 
 const RISK_COLORS: Record<string, string> = {
@@ -16,10 +17,24 @@ const RISK_COLORS: Record<string, string> = {
   low: "#22c55e",
 };
 
+type RiskFeatureProperties = {
+  risk_level?: string;
+  name?: string;
+  risk_score?: number;
+  surface_temp_c?: number | null;
+  humidity_pct?: number | null;
+  precip_mm?: number | null;
+  condition_cause?: string | null;
+  nearby_alerts?: number;
+  data_staleness_minutes?: number | null;
+};
+
+type RiskFeature = Feature<Point, RiskFeatureProperties>;
+
 export default function RiskMap({ geojson }: Props) {
   const mapKey = useMemo(() => JSON.stringify(geojson), [geojson]);
 
-  const pointToLayer = (feature: any, latlng: L.LatLng) => {
+  const pointToLayer = (feature: RiskFeature | undefined, latlng: L.LatLng) => {
     const level = feature.properties?.risk_level || "low";
     return L.circleMarker(latlng, {
       radius: 7,
@@ -31,7 +46,10 @@ export default function RiskMap({ geojson }: Props) {
     });
   };
 
-  const onEachFeature = (feature: any, layer: L.Layer) => {
+  const onEachFeature = (feature: RiskFeature | undefined, layer: L.Layer) => {
+    if (!feature) {
+      return;
+    }
     const props = feature.properties;
     if (!props) {
       return;
@@ -69,7 +87,7 @@ export default function RiskMap({ geojson }: Props) {
       {geojson ? (
         <GeoJSON
           key={mapKey}
-          data={geojson as any}
+          data={geojson}
           pointToLayer={pointToLayer}
           onEachFeature={onEachFeature}
         />
